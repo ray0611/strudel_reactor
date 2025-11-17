@@ -1,4 +1,4 @@
-export const stranger_tune = `setcps(140/60/4)
+export const algorave_dave_tune = `setcps(140/60/4)
 
 samples('github:algorave-dave/samples')
 samples('https://raw.githubusercontent.com/tidalcycles/Dirt-Samples/master/strudel.json')
@@ -46,6 +46,7 @@ note(pick(basslines, bass))
 .room(0.6)
 .lpf(700)
 .room(0.4)
+.gain(1)
 .postgain(pick(gain_patterns, pattern))
 
 
@@ -56,6 +57,7 @@ note(pick(arpeggiator1, "<0 1 2 3>/2"))
 .adsr("0:0:.5:.1")
 .room(0.6)
 .lpenv(3.3)
+.gain(1)
 .postgain(pick(gain_patterns, pattern))
 
 
@@ -65,6 +67,7 @@ stack(
   .postgain(6)
   .pcurve(2)
   .pdec(1)
+  .gain(1)
   .struct(pick(drum_structure, pattern)),
 
   s("sh").struct("[x!3 ~!2 x!10 ~]")
@@ -73,7 +76,7 @@ stack(
   .speed(0.8).jux(rev).room(sine.range(0.1,0.4)).gain(0.6),
 
   s("{~ ~ rim ~ cp ~ rim cp ~!2 rim ~ cp ~ < rim ~ >!2}%8 *2")
-  .bank("[KorgDDM110, OberheimDmx]").speed(1.2)
+  .bank("[KorgDDM110, OberheimDmx]").speed(1.2).gain(1)
   .postgain(.25),
 )
 
@@ -98,3 +101,24 @@ stack(
 // all(x => x.log())
 
 // @version 1.2`;
+
+export const dash_on_the_train = `setcps(120/60/4)
+
+$: note("[C G], <D Fb B C A>*[0.5,2]")
+  // .rev()
+  .sound("sawtooth").cpm(30).gain(.4)
+.lpf("<100 200 300 400 500 600 700 800 900 1000 1100 1200 1300 1400 1300 1200 1100 1000 900 800 700 600 500 400 300 200>/4")
+  .room(1)
+  // .jux(pan)
+  .pan("<0 1>/2")  
+.delay(1)
+.roomsize("10")
+// .slow("1, .5, .25") // swap to this
+
+  // $: note("F")
+  //   .sound("piano").cpm(30)
+  //  .lpf(800)
+
+  
+.slow(".1275").gain(.8)
+`;

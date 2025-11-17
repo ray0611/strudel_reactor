@@ -1,14 +1,20 @@
 import './App.css';
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StrudelMirror } from '@strudel/codemirror';
-import { evalScope } from '@strudel/core';
+import { djf, evalScope } from '@strudel/core';
 import { drawPianoroll } from '@strudel/draw';
 import { initAudioOnFirstClick } from '@strudel/webaudio';
 import { transpiler } from '@strudel/transpiler';
 import { getAudioContext, webaudioOutput, registerSynthSounds } from '@strudel/webaudio';
 import { registerSoundfonts } from '@strudel/soundfonts';
-import { stranger_tune } from './tunes';
+import { dash_on_the_train, algorave_dave_tune } from './tunes';
 import console_monkey_patch, { getD3Data } from './console-monkey-patch';
+import DJControls from './components/DJControls';
+import PlayButtons from './components/PlayButtons';
+import ProcButtons from './components/ProcButtons';
+import PreTextArea from './components/PreTextArea';
+import TunesDropdown from './components/TunesDropdown';
+import { Preprocess } from './utils/PreprocessLogic'
 
 let globalEditor = null;
 
@@ -16,63 +22,56 @@ const handleD3Data = (event) => {
     console.log(event.detail);
 };
 
-export function SetupButtons() {
-
-    document.getElementById('play').addEventListener('click', () => globalEditor.evaluate());
-    document.getElementById('stop').addEventListener('click', () => globalEditor.stop());
-    document.getElementById('process').addEventListener('click', () => {
-        Proc()
-    }
-    )
-    document.getElementById('process_play').addEventListener('click', () => {
-        if (globalEditor != null) {
-            Proc()
-            globalEditor.evaluate()
-        }
-    }
-    )
-}
-
-
-
-export function ProcAndPlay() {
-    if (globalEditor != null && globalEditor.repl.state.started == true) {
-        console.log(globalEditor)
-        Proc()
-        globalEditor.evaluate();
-    }
-}
-
-export function Proc() {
-
-    let proc_text = document.getElementById('proc').value
-    let proc_text_replaced = proc_text.replaceAll('<p1_Radio>', ProcessText);
-    ProcessText(proc_text);
-    globalEditor.setCode(proc_text_replaced)
-}
-
-export function ProcessText(match, ...args) {
-
-    let replace = ""
-    if (document.getElementById('flexRadioDefault2').checked) {
-        replace = "_"
-    }
-
-    return replace
-}
 
 export default function StrudelDemo() {
 
-const hasRun = useRef(false);
+    const hasRun = useRef(false);
+    const [error, setError] = useState(null);
+
+    const handlePlay = () => {
+        try {
+            setError(null);
+            let outputText = Preprocess({
+                inputText: procText,
+                volume: volume,
+                bpm,
+                effects: { reverbOn, delayOn, underwaterOn }
+            });
+            globalEditor.setCode(outputText);
+            globalEditor.evaluate();
+        } catch (e) {
+            setError(e?.message || String(e));
+        }
+    };
+
+    const handleStop = () => {
+        try {
+            globalEditor.stop();
+        } catch (e) {
+            setError(e?.message || String(e));
+        }
+    };
+
+    const [procText, setProcText] = useState(algorave_dave_tune);
+    const [volume, setVolume] = useState(1);
+    const [state, setState] = useState("stop");
+    const [bpm, setBpm] = useState(120);
+    const [reverbOn, setReverbOn] = useState(false);
+    const [delayOn, setDelayOn] = useState(false);
+    const [underwaterOn, setUnderwaterOn] = useState(false);
+
+    useEffect(() => {
+        if (state === "play") {
+            handlePlay();
+        }
+    }, [volume, bpm, reverbOn, delayOn, underwaterOn]);
 
 useEffect(() => {
-
-    if (!hasRun.current) {
-        document.addEventListener("d3Data", handleD3Data);
-        console_monkey_patch();
-        hasRun.current = true;
-        //Code copied from example: https://codeberg.org/uzu/strudel/src/branch/main/examples/codemirror-repl
-            //init canvas
+    try {
+        if (!hasRun.current) {
+            document.addEventListener("d3Data", handleD3Data);
+            console_monkey_patch();
+            hasRun.current = true;
             const canvas = document.getElementById('roll');
             canvas.width = canvas.width * 2;
             canvas.height = canvas.height * 2;
@@ -97,59 +96,84 @@ useEffect(() => {
                     await Promise.all([loadModules, registerSynthSounds(), registerSoundfonts()]);
                 },
             });
-            
-        document.getElementById('proc').value = stranger_tune
-        SetupButtons()
-        Proc()
+            document.getElementById('proc').value = procText
+        }
+        globalEditor.setCode(procText);
+    } catch (e) {
+        setError(e?.message || String(e));
     }
+}, [procText]);
 
-}, []);
 
+    return (
+        <div>
+            <main>
+                <div className="container-fluid p-0">
 
-return (
-    <div>
-        <h2>Strudel Demo</h2>
-        <main>
+                    <section className="vh-100 d-flex flex-column justify-content-center align-items-center bg-dark text-white">
+                        <div className="row w-100 align-items-center">
+                            <div className="col-8 d-flex flex-column justify-content-center align-items-center">
+                                {error && (
+                                    <div className="alert alert-danger alert-dismissible fade show w-75" role="alert">
+                                        {error}
+                                        <button type="button" className="btn-close" aria-label="Close" onClick={() => setError(null)}></button>
+                                    </div>
+                                )}
+                                <h1>Strudel Demo</h1>
+                                <div className="card shadow" style={{ width: '70%' }}>
+                                    <div className="card-body">
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <PlayButtons onPlay={() => { setState("play"); handlePlay(); }}
+                                                    onStop={() => { setState("stop"); handleStop(); }} />
+                                            </div>
+                                            <div>
+                                                <TunesDropdown
+                                                    options={[
+                                                        { label: 'Algorave Dave', code: algorave_dave_tune },
+                                                        { label: 'Dash on the Train', code: dash_on_the_train },
+                                                    ]}
+                                                    onSelect={(code) => setProcText(code)}
+                                                />
+                                            </div>
+                                        </div>
 
-            <div className="container-fluid">
-                <div className="row">
-                    <div className="col-md-8" style={{ maxHeight: '50vh', overflowY: 'auto' }}>
-                        <label htmlFor="exampleFormControlTextarea1" className="form-label">Text to preprocess:</label>
-                        <textarea className="form-control" rows="15" id="proc" ></textarea>
-                    </div>
-                    <div className="col-md-4">
-
-                        <nav>
-                            <button id="process" className="btn btn-outline-primary">Preprocess</button>
-                            <button id="process_play" className="btn btn-outline-primary">Proc & Play</button>
-                            <br />
-                            <button id="play" className="btn btn-outline-primary">Play</button>
-                            <button id="stop" className="btn btn-outline-primary">Stop</button>
-                        </nav>
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="col-md-8" style={{ maxHeight: '50vh', overflowY: 'auto' }}>
-                        <div id="editor" />
-                        <div id="output" />
-                    </div>
-                    <div className="col-md-4">
-                        <div className="form-check">
-                            <input className="form-check-input" type="radio" name="flexRadioDefault" id="flexRadioDefault1" onChange={ProcAndPlay} defaultChecked />
-                            <label className="form-check-label" htmlFor="flexRadioDefault1">
-                                p1: ON
-                            </label>
+                                        <DJControls
+                                            volume={volume}
+                                            onVolumeChange={(e) => setVolume(e.target.value)}
+                                        bpm={bpm}
+                                        onBpmChange={(e) => setBpm(Number(e.target.value || 0))}
+                                        reverbOn={reverbOn}
+                                        delayOn={delayOn}
+                                        underwaterOn={underwaterOn}
+                                        onToggleReverb={() => setReverbOn(prev => !prev)}
+                                        onToggleDelay={() => setDelayOn(prev => !prev)}
+                                        onToggleUnderwater={() => setUnderwaterOn(prev => !prev)}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="form-check">
-                            <input className="form-check-input" type="radio" name="flexRadioDefault" id="flexRadioDefault2" onChange={ProcAndPlay} />
-                            <label className="form-check-label" htmlFor="flexRadioDefault2">
-                                p1: HUSH
-                            </label>
+                        <div className="col-4 d-flex flex-column justify-content-center align-items-center">
+                            <canvas id="roll" className="w-100 border rounded shadow-sm"></canvas>
+                        </div>
+
+                    </div>
+                </section>
+
+
+                <section className="vh-100 overflow-auto bg-dark text-white">
+                    <div className="container py-4">
+                        <h2>Editor & Output</h2>
+                        <div>
+                            <PreTextArea defaultValue={procText} onChange={(e) => setProcText(e.target.value)} />
+                            <div id="editor" />
+                            <div id="output" />
                         </div>
                     </div>
-                </div>
+                </section>
+
             </div>
-            <canvas id="roll"></canvas>
+
         </main >
     </div >
 );
